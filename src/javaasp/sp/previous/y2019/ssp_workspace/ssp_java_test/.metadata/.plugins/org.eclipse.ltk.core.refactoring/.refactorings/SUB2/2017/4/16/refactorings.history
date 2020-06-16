@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy element &apos;RunManager.java&apos; to &apos;SUB3/src/com.lgcns.test&apos;&#x0D;&#x0A;- Original project: &apos;SUB2&apos;&#x0D;&#x0A;- Destination element: &apos;SUB3/src/com.lgcns.test&apos;&#x0D;&#x0A;- Original element: &apos;com.lgcns.test.RunManager.java&apos;" description="Copy compilation unit" destination="=SUB3/src&lt;com.lgcns.test" element1="/src&lt;com.lgcns.test{RunManager.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyResources" stamp="1492512411685" units="1" version="1.0"/>
+</session>
