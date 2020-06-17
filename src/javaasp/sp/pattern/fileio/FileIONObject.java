@@ -49,6 +49,7 @@ public class FileIONObject {
 		printWriter.close();
 	}
 	
+	//Scanner를 사용해서 파일 라인별 객체 목록
 	public static List<FileLineObject> getObjecListByFileLineWithScanner(String filePath) throws IOException {
 		Scanner fs = new Scanner(new File(filePath));
 		//사용자 입력 읽기
@@ -68,6 +69,7 @@ public class FileIONObject {
 		return objList;
 	}
 
+	//Stream을 사용해서 파일 라인별 객체 목록
 	public static List<FileLineObject> getObjectListByFileLineWithStream(String filePath) throws IOException {
 		List<FileLineObject> objList = null;
 		try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
@@ -76,6 +78,17 @@ public class FileIONObject {
 		
 		return objList;
 	}
+	
+	//Stream을 사용해서 파일 라인 목록 가져오기
+	public static List<String> getLineListByFileLineWithStream(String filePath) throws IOException {
+		List<String> lineList = null;
+		try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
+			lineList = stream.collect(Collectors.toList());
+		}
+		
+		return lineList;
+	}	
+	
 }
 
 /**
