@@ -73,7 +73,7 @@ public class FileIONObject {
 	public static List<FileLineObject> getObjectListByFileLineWithStream(String filePath) throws IOException {
 		List<FileLineObject> objList = null;
 		try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
-			objList = stream.map(line->new FileLineObject(line)).collect(Collectors.toList());
+			objList = stream.map(FileLineObject::new).collect(Collectors.toList());
 		}
 		
 		return objList;
