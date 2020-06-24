@@ -1,4 +1,4 @@
-package javaasp.sp.pattern.fileio;
+package javaasp.sp.pattern.externalprocess;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -7,14 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class ExternalProcessHandling {
+public class ExternalProcess {
 	
 	public static void main(String[] args) throws Exception {
-		List<String> lineDatas = ExternalProcessHandling.readFromExternalProcess("tasklist");
+		List<String> lineDatas = ExternalProcess.readFromExternalProcess("tasklist");
 		
 		//TODO : 데이터 처리
 		
-		ExternalProcessHandling.writeToExternalProcess("./writeprogram.exe", lineDatas);
+		ExternalProcess.writeToExternalProcess("./writeprogram.exe", lineDatas);
 	}
 	
 	
