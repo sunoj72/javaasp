@@ -31,6 +31,10 @@ public class FileIONObject {
 		
 		//1.2 파일 라인 단위로 읽어 라인별 객체화 하기 - 방법 2 : Stream
 		objList = getObjectListByFileLineWithStream(filePath);
+		
+		//1.2 파일 라인 단위로 읽어 라인별 객체화 하기 - 방법 2-1 : Stream
+		// 추상화된 함수를 통해 하는 걸로 변경... 매번 생성 객체별 함수를 만들 필요가 없음
+		objList = getObjectListByFileLineWithStream(filePath, FileLineObject.class);
 				
 		//TODO : 데이터 처리
 		for(FileLineObject oneObject : objList) {
