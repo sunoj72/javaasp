@@ -79,6 +79,29 @@ public class FileIONObject {
 		return objList;
 	}
 	
+	//Stream을 사용해서 파일 라인별 객체 목록 - 모든 클래스에 대응하도록 추상화.(전
+	/**
+	 * Stream을 사용해서 파일 라인별 객체 생성 - 모든 객체 타입에 대응하도록 타입 추상화
+	 * <br> 전제 : 라인 문자열을 처리하기 위한 생성자가 존재해야 함(ex. ObjectClass(String line))
+	 * @param <T> 객체 타입
+	 * @param filePath 파일경로
+	 * @param objectClass 생성 객체 타입
+	 * @return 생성 인스턴스 목록
+	 * @throws IOException
+	 */
+	public static <T> List<T> getObjectListByFileLineWithStream(String filePath, Class<T> objectClass) throws IOException {
+		Stream<String> stream = Files.lines(Paths.get(filePath));
+		List<T> objList = stream.map(line->{
+			try {
+				return objectClass.getConstructor(String.class).newInstance(line);
+			} catch (Exception ex) { ex.printStackTrace(); }
+			return null;
+		}).collect(Collectors.toList());
+		stream.close();
+		
+		return objList;
+	}
+	
 	//Stream을 사용해서 파일 라인 목록 가져오기
 	public static List<String> getLineListByFileLineWithStream(String filePath) throws IOException {
 		List<String> lineList = null;
