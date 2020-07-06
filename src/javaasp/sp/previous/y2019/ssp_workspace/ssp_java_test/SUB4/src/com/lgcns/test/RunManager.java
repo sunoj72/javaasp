@@ -3,6 +3,7 @@ package com.lgcns.test;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -17,176 +18,52 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
 public class RunManager {
 
-	// 정류장 정보 목록 - 라인 단위 객체화(특정 문자로 문자 자르기) ==> static 변수로 수정
-	private static List<BusStation> stationList = new ArrayList<BusStation>();
-	public static List<BusLocation> busLocList = new ArrayList<BusLocation>();
-	// 모바일 접속 소켓
-	public static boolean mobilePrintAvailableStatus;
-	public static Socket mobileSocket;
-	public static BufferedReader mobileInputStream;
-	public static PrintWriter mobileOutputStream;
+	//버스 정보
+	static List<BusLocation> busLocList = new ArrayList<BusLocation>();
+	//정류장 정보
+	static List<BusStation> stationList = new ArrayList<BusStation>();
 	
-
 	public static void main(String[] args) throws Exception {
 		
-		//정류장 위치 정보 읽기 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		//라인 단위 처리 ==> 4번 문제 : NIO와 Stream을 활용한 객체 생성 함수 활용
+		//2번문제 : 정류장 정보 - 라인 단위 객체화 - Util함수 사용
 		stationList = getObjectListByFileLineWithStream("./INFILE/STATION.TXT", BusStation.class);
-				
-		//파일 읽기 - 정류장 위치 정보
-//		Scanner fs = new Scanner(new File("./INFILE/STATION.TXT"));
-	
-		//라인 단위 객체화(특정 문자로 문자 자르기) ==> static 변수로 수정
-//		ArrayList<BusStation> stationList = new ArrayList<BusStation>();
-		//라인 단위 처리 ==> NIO와 Stream을 활용한 객체 생성 함수 활용
-//		while(fs.hasNextLine()) {
-//			//문자열 처리 후 데이터 객체화
-//			String[] lineDatas = fs.nextLine().split("#");
-//			stationList.add(new BusStation(lineDatas[0], Integer.parseInt(lineDatas[1]), Integer.parseInt(lineDatas[2])));
-//		}
 		
-		//정류장 위치 정보 읽기 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		
-		//Bus 위치 정보 읽기 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		//파일 읽기 - Bus 위치 정보 ==> 4번 문제 : 클라이언트(CLIENT.EXE)로부터 위치정보를 수신
-		//4번 문제 : 모바일접속 통신이 제일 마지막에 오는 것은 아님 : 최종 모바일접속의 PRINT명령이 제일 마지막에 오는 것은 확실
-		BusLocationReceiverHandler busLocationReceiverHandler = new BusLocationReceiverHandler();
-		//4번 문제 : 작업 후 클라이언트(CLIENT.EXE)로부터 위치정보를 수신을 중지? : 문제 평가는 프로그램 종료 없음?? 
-		//busLocationReceiverHandler.setDaemon(true);
-		busLocationReceiverHandler.start();
-		
-		while(!mobilePrintAvailableStatus) {
-			Thread.sleep(1000);			
-		}
-		String printCommand = RunManager.mobileInputStream.readLine();
-//		System.out.println("Mobile Command : " + printCommand);
-		String passengerInfo = mobileInputStream.readLine();
-
-//		int socketcount = 0;
-//		BufferedReader mobileInputStream = null;
-//		PrintWriter mobileOutputStream = null;
-//		try(ServerSocket serverSocket = new ServerSocket(9876)) {
-//			while(!isMobileResponse) {
-//				Socket client = serverSocket.accept();
-//				socketcount++;
-//				
-//				BufferedReader intStream = new BufferedReader(new InputStreamReader(client.getInputStream()));
-//				String busName = intStream.readLine();
-//				System.out.println(socketcount + ":" + busName);
-//				if("MOBILE".equals(busName)) {
-//					mobileInputStream = intStream;
-//					mobileOutputStream = new PrintWriter(new OutputStreamWriter(client.getOutputStream()),true);
-//				} else {
-//					BusLocationReceiver receiver = new BusLocationReceiver(busName, intStream);
-//					receiver.start();
-//				}
-//			}
-//		}
-		// 거리별로 정렬
-		Collections.sort(busLocList);
-		//Bus 위치 정보 읽기 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		
-		
-		
-		
-		//문제1번 : 앞뒤버스 정보 생성 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		ArrayList<String> prePostList = new ArrayList<String>();
-		prePostList.add(busLocList.get(0).time
-				+"#"+busLocList.get(0).name
-				+"#"+busLocList.get(1).name+","+String.format("%05d", busLocList.get(1).location-busLocList.get(0).location)
-				+"#NOBUS,00000");
-		int i=1;
-		for(; i<busLocList.size()-1; i++) {
-			prePostList.add(busLocList.get(i).time
-					+"#"+busLocList.get(i).name
-					+"#"+busLocList.get(i+1).name+","+String.format("%05d", busLocList.get(i+1).location-busLocList.get(i).location)
-					+"#"+busLocList.get(i-1).name+","+String.format("%05d", busLocList.get(i).location-busLocList.get(i-1).location)
-					);
-		}
-		prePostList.add(busLocList.get(i).time
-				+"#"+busLocList.get(i).name
-				+"#NOBUS,00000"
-				+"#"+busLocList.get(i-1).name+","+String.format("%05d", busLocList.get(i).location-busLocList.get(i-1).location)
-				);
-		//버스번호 정렬
-		Collections.sort(prePostList);
-
-		//처리 결과 파일 쓰기
-		PrintWriter printWriter = new PrintWriter(new File("./OUTFILE/PREPOST.TXT"));
-		for(String onePrePost : prePostList) {
-			printWriter.println(onePrePost);
-		}
-		printWriter.close();
-		//문제1번 : 앞뒤버스 정보 생성 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		
-		
-		
-		//문제2번 : 정류장별 최근접 도착예정차량 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		ArrayList<String> arrivalList = new ArrayList<String>();
-		for(BusStation oneStation : stationList) {
-			BusLocation closetBus = null;
-			for(BusLocation oneBus : busLocList) {
-				if(oneStation.location>oneBus.location) {
-					closetBus = oneBus;
-					continue;
-				}
-				break;
+		//4번 문제//////////////////////////////////////////////
+		// 1. 버스 정보를 socket 통신을 통해 받아옴
+		// 2. 출력 신호(Mobile socket)시 socket으로 요청 결과(승객 도착 정보) 응답
+		// 3. (옵션) Thread Pool 사용
+		//////////////////////////////////////////////////////
+		ExecutorService executorService = Executors.newFixedThreadPool(10); // Thread Pool 방식
+		try(ServerSocket serverSocket = new ServerSocket(9876)) {
+			while(true) {
+				Socket client = serverSocket.accept();
+				BusLocationReceiver receiver = new BusLocationReceiver(client);
+				//receiver.start(); // 기본 Thread 방식
+				executorService.submit(receiver); // Thread Pool 방식
 			}
-			arrivalList.add(busLocList.get(0).time+"#"+oneStation.name+"#"+(closetBus==null?"NOBUS,00000":closetBus.name+","+String.format("%05d", oneStation.location-closetBus.location)));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		
-		//처리 결과 파일 쓰기
-		printWriter = new PrintWriter(new File("./OUTFILE/ARRIVAL.TXT"));
-		for(String oneArrival : arrivalList) {
-			printWriter.println(oneArrival);
-		}
-		printWriter.close();
-		//문제2번 : 정류장별 최근접 도착예정차량 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		// 작업 큐에 대기하고 있는 모든 작업을 처리한 뒤에 스레드풀을 종료 - 문제에 종료 없음이기 때문에 아래 호출 X
+		//executorService.shutdown();
 		
-		
-		
-		//문제3번 :  정류장도착예정시각 계산 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		ArrayList<String> fastestArrivalBusList = new ArrayList<String>();
-		for(BusStation oneStation : stationList) {
-			BusLocation closetBus = null;
-			int fastTimeToArrive = Integer.MAX_VALUE;
-			
-			// 정류장보다 뒤세 있는 버스 필터링
-			List<BusLocation> busListBeforeStation =  busLocList.stream().filter(bus->bus.location<oneStation.location).collect(Collectors.toList());
-			for(BusLocation oneBus : busListBeforeStation) {
-				int timeToArrive = elapsedTimeToStation(oneBus, oneStation);
-				if(fastTimeToArrive>timeToArrive) {
-					closetBus = oneBus;
-					fastTimeToArrive = timeToArrive;
-				}
-			}
-			// 문자열 도착시간과 도착예정 초를 갖고 계산 후 문자열 변경
-			String arriveTimeAfterSec = getTimeAfterSec(busLocList.get(0).time, fastTimeToArrive);
-			// 도착 정보 문자열 저장
-			fastestArrivalBusList.add(busLocList.get(0).time+"#"+oneStation.name+"#"+(closetBus==null?"NOBUS,00:00:00":closetBus.name+","+arriveTimeAfterSec));
-		}
-		Collections.sort(fastestArrivalBusList);
-		
-		//처리 결과 파일 쓰기 - 외부 프로그램 이용
-		transferStationArrivalTime(fastestArrivalBusList);
-		//문제3번 :  정류장도착예정시각 계산 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		
-		
-		
-		//문제 4번 : 승객도착시간 계산 시작+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	}
+
+	public static String createPassengerArrivalTimeAndSend(String passengerInfo) throws ParseException {
 		String[] passengerInfos = passengerInfo.split("#");
 		int passengerArrivalElapsedTime = getPassengerArriveTime(passengerInfos[0], Integer.parseInt(passengerInfos[1]));
 		String passengerArrivalTime = getTimeAfterSec(busLocList.get(0).time,passengerArrivalElapsedTime);
-		mobileOutputStream.print(passengerArrivalTime);
-		mobileOutputStream.close();
-		//문제 4번 : 승객도착시간 계산 종료+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		
+		return passengerArrivalTime;
 	}
 	
 	private static int getPassengerArriveTime(String stationName, int passengerLocation) {
@@ -216,10 +93,36 @@ public class RunManager {
 		return fastBusTime;
 	}
 	
+	public static void createFastestArrivalBusInfoAndSendToExternalProgram() throws Exception {
+		ArrayList<String> fastestArrivalBusList = new ArrayList<String>();
+		for(BusStation oneStation : stationList) {
+			BusLocation closetBus = null;
+			int fastTimeToArrive = Integer.MAX_VALUE;
+			
+			// 정류장보다 뒤세 있는 버스 필터링
+			List<BusLocation> busListBeforeStation =  busLocList.stream().filter(bus->bus.location<oneStation.location).collect(Collectors.toList());
+			for(BusLocation oneBus : busListBeforeStation) {
+				int timeToArrive = elapsedTimeToStation(oneBus, oneStation);
+				if(fastTimeToArrive>timeToArrive) {
+					closetBus = oneBus;
+					fastTimeToArrive = timeToArrive;
+				}
+			}
+			// 문자열 도착시간과 도착예정 초를 갖고 계산 후 문자열 변경
+			String arriveTimeAfterSec = getTimeAfterSec(busLocList.get(0).time, fastTimeToArrive);
+			// 도착 정보 문자열 저장
+			fastestArrivalBusList.add(busLocList.get(0).time+"#"+oneStation.name+"#"+(closetBus==null?"NOBUS,00:00:00":closetBus.name+","+arriveTimeAfterSec));
+		}
+		Collections.sort(fastestArrivalBusList);
+		
+		//외부 프로그램에 데이터 전송
+		transferStationArrivalTime(fastestArrivalBusList);
+	}
+	
 	/**
 	 * 외부 프로그램에 데이터 전송
 	 */
-	private static void transferStationArrivalTime(ArrayList<String> fastestArrivalBusList) throws IOException {
+	public static void transferStationArrivalTime(ArrayList<String> fastestArrivalBusList) throws IOException {
 		Process theProcess = Runtime.getRuntime().exec("./SIGNAGE.EXE");
 		BufferedWriter outStream =new BufferedWriter(new OutputStreamWriter(theProcess.getOutputStream()));
 		
@@ -231,20 +134,9 @@ public class RunManager {
 	}
 	
 	private static String getTimeAfterSec(String timeString, int seconds) throws ParseException {
-		
 		SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
 		long aferTime = timeFormat.parse(timeString).getTime()+(seconds*1000);
 		return timeFormat.format(new Date(aferTime));
-		
-//		String[] timeSp = timeString.split(":");
-//		int converSec = Integer.parseInt(timeSp[0])*3600+Integer.parseInt(timeSp[1])*60+Integer.parseInt(timeSp[2]) + seconds;
-//		String convertedSecStr = String.format("%02d", (converSec/3600))+":";
-//		converSec = converSec%3600;
-//		convertedSecStr += String.format("%02d", (converSec/60))+":";
-//		converSec = converSec%60;
-//		convertedSecStr += String.format("%02d", converSec);
-//		
-//		return convertedSecStr;
 		
 	}
 	
@@ -281,7 +173,113 @@ public class RunManager {
 		
 	}
 	
-	//Stream을 사용해서 파일 라인별 객체 목록
+	public static void createArrivalInfoAndWriteFile() throws FileNotFoundException {
+		//도착 정보 생성
+		ArrayList<String> arrivalList = new ArrayList<String>();
+		for(BusStation oneStation : stationList) {
+			BusLocation closetBus = null;
+			for(BusLocation oneBus : busLocList) {
+				if(oneStation.location>oneBus.location) {
+					closetBus = oneBus;
+					continue;
+				}
+				break;
+			}
+			arrivalList.add(busLocList.get(0).time+"#"+oneStation.name+"#"+(closetBus==null?"NOBUS,00000":closetBus.name+","+String.format("%05d", oneStation.location-closetBus.location)));
+		}
+		
+		//처리 결과 파일 쓰기
+		PrintWriter printWriter = new PrintWriter(new File("./OUTFILE/ARRIVAL.TXT"));
+		for(String oneArrival : arrivalList) {
+			printWriter.println(oneArrival);
+		}
+		printWriter.close();
+	}
+	
+	public static void createBusLocationInfoFromFile(String filePath) throws IOException {
+		List<String> fileLineList = getLineListByFileLineWithStream(filePath);
+		for(String fileLine : fileLineList) {
+			if("PRINT".equals(fileLine)) {
+				break;
+			}
+			
+			//문자열 처리 후 데이터 객체화
+			String[] lineDatas = fileLine.split("#");
+			// 위치정보 정상인 경우 
+			if(lineDatas.length > 1 ) {
+				int busLocIndex = 0;
+				for(int i=1; i<lineDatas.length; i++) {
+					String[] busLocDatas = lineDatas[i].split(",");
+					
+					if(busLocList.size() < lineDatas.length-1) {
+						busLocList.add(new BusLocation(lineDatas[0], busLocDatas[0], Integer.parseInt(busLocDatas[1]),0));
+						
+					} else {
+						int lastSpeed = Integer.parseInt(busLocDatas[1]) - busLocList.get(busLocIndex).location;
+						
+						busLocList.get(busLocIndex).time = lineDatas[0];
+						busLocList.get(busLocIndex).name =  busLocDatas[0];
+						busLocList.get(busLocIndex).location = Integer.parseInt(busLocDatas[1]);
+						busLocList.get(busLocIndex).lastSpeed = lastSpeed;
+						
+						busLocIndex++;
+					}					
+				}
+			} else { // 위치정보 손실이 발생하는 경우 :  위치정보 손실을 고려한 최종 위치 계산
+				ArrayList<BusLocation> newBusLocList = new ArrayList<BusLocation>();
+				for(BusLocation preBus : busLocList) {
+					int validSpeed = getValidSpeed(preBus);
+					newBusLocList.add(new BusLocation(lineDatas[0], preBus.name, preBus.location+validSpeed, preBus.lastSpeed));
+				}
+				busLocList = newBusLocList;
+			}
+		}
+		// 거리별로 정렬
+		Collections.sort(busLocList);
+	}
+	
+	public static void createPrePostBusInfoAndPrint() throws FileNotFoundException {
+		//앞뒤버스 정보 생성
+		ArrayList<String> prePostList = new ArrayList<String>();
+		prePostList.add(busLocList.get(0).time
+				+"#"+busLocList.get(0).name
+				+"#"+busLocList.get(1).name+","+String.format("%05d", busLocList.get(1).location-busLocList.get(0).location)
+				+"#NOBUS,00000");
+		int i=1;
+		for(; i<busLocList.size()-1; i++) {
+			prePostList.add(busLocList.get(i).time
+					+"#"+busLocList.get(i).name
+					+"#"+busLocList.get(i+1).name+","+String.format("%05d", busLocList.get(i+1).location-busLocList.get(i).location)
+					+"#"+busLocList.get(i-1).name+","+String.format("%05d", busLocList.get(i).location-busLocList.get(i-1).location)
+					);
+		}
+		prePostList.add(busLocList.get(i).time
+				+"#"+busLocList.get(i).name
+				+"#NOBUS,00000"
+				+"#"+busLocList.get(i-1).name+","+String.format("%05d", busLocList.get(i).location-busLocList.get(i-1).location)
+				);
+		//버스번호 정렬
+		Collections.sort(prePostList);
+
+		//처리 결과 파일 쓰기
+		PrintWriter printWriter = new PrintWriter(new File("./OUTFILE/PREPOST.TXT"));
+		for(String onePrePost : prePostList) {
+			printWriter.println(onePrePost);
+		}
+		printWriter.close();
+	}
+	
+	// Util - Stream을 사용해서 파일 라인 목록 가져오기
+	public static List<String> getLineListByFileLineWithStream(String filePath) throws IOException {
+		List<String> lineList = null;
+		try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
+			lineList = stream.collect(Collectors.toList());
+		}
+		
+		return lineList;
+	}
+	
+	// Util - Stream을 사용해서 파일 라인별 객체 목록 - 모든 클래스에 대응하도록 추상화
 	public static <T> List<T> getObjectListByFileLineWithStream(String filePath, Class<T> objectClass) throws IOException {
 		Stream<String> stream = Files.lines(Paths.get(filePath));
 		List<T> objList = stream.map(line->{
@@ -344,38 +342,6 @@ class BusStation implements Comparable<BusStation> {
 	}
 }
 
-/**
- * Client와 통신하기 위한 소켓 처리 프로그램
- *
- */
-class BusLocationReceiverHandler extends Thread {
-
-	@Override
-	public void run() {
-		int socketcount = 0;
-		try(ServerSocket serverSocket = new ServerSocket(9876)) {
-			while(true) {
-				Socket client = serverSocket.accept();
-				socketcount++;
-				
-				BufferedReader intStream = new BufferedReader(new InputStreamReader(client.getInputStream()));
-				String busName = intStream.readLine();
-				System.out.println(socketcount + ":" + busName);
-				if("MOBILE".equals(busName)) {
-					RunManager.mobileInputStream = intStream;
-					RunManager.mobileOutputStream = new PrintWriter(new OutputStreamWriter(client.getOutputStream()),true);
-					RunManager.mobilePrintAvailableStatus = true;
-				} else {
-					BusLocationReceiver receiver = new BusLocationReceiver(busName, intStream);
-					receiver.start();
-				}
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-}
 
 /**
  * Client로부터 실제 데이터 받아 처리하는 프로그램
@@ -383,35 +349,52 @@ class BusLocationReceiverHandler extends Thread {
  */
 class BusLocationReceiver extends Thread {
 	
-	private String busName;
-	private BufferedReader clientInput;
-	
-	public BusLocationReceiver(String busName, BufferedReader clientInput) {
-		this.busName = busName;
-		this.clientInput = clientInput;
+	private Socket client;
+
+	public BusLocationReceiver(Socket client) {
+		this.client = client;
 	}
 
 	@Override
 	public void run() {
-		String line = null;
 		BusLocation lastBusLocation = new BusLocation("", "", 0, 0);
-		
 		try {
-			while((line=clientInput.readLine()) != null) {
-				//문자열 처리 후 데이터 객체화
-				String[] lineDatas = line.split("#");
-				// 위치정보 정상인 경우 
-				if(lineDatas.length > 1 ) {
-					int location = Integer.parseInt(lineDatas[1]);
-					lastBusLocation = new BusLocation(lineDatas[0], this.busName, location, location-lastBusLocation.location);
-				} else { // 손실된 경우
-					int validSpeed = RunManager.getValidSpeed(lastBusLocation);
-					lastBusLocation = new BusLocation(lineDatas[0], this.busName, lastBusLocation.location+validSpeed, validSpeed);
+			BufferedReader clientInput = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			String busName = clientInput.readLine();
+			System.out.println("Client Connected : " + busName);
+			if("MOBILE".equals(busName)) {
+				String printCommand = clientInput.readLine();
+				String passengerInfo = clientInput.readLine();
+				String passengerArriavlTime = RunManager.createPassengerArrivalTimeAndSend(passengerInfo);
+				PrintWriter mobileOutput = new PrintWriter(new OutputStreamWriter(client.getOutputStream()),true);
+				mobileOutput.print(passengerArriavlTime);
+				mobileOutput.close();
+				
+				// 거리별로 정렬
+				Collections.sort(RunManager.busLocList);
+				//1번문제 : 출력
+				RunManager.createPrePostBusInfoAndPrint();
+				//2번문제 : 출력
+				RunManager.createArrivalInfoAndWriteFile();
+				//문제3번 :  정류장도착예정시각 계산 후 외부 프로그램에게 처리 결과 전송
+				RunManager.createFastestArrivalBusInfoAndSendToExternalProgram();
+				
+			} else {
+				String line = null;
+				while((line=clientInput.readLine()) != null) {
+					//문자열 처리 후 데이터 객체화
+					String[] lineDatas = line.split("#");
+					// 위치정보 정상인 경우 
+					if(lineDatas.length > 1 ) {
+						int location = Integer.parseInt(lineDatas[1]);
+						lastBusLocation = new BusLocation(lineDatas[0], busName, location, location-lastBusLocation.location);
+					} else { // 손실된 경우
+						int validSpeed = RunManager.getValidSpeed(lastBusLocation);
+						lastBusLocation = new BusLocation(lineDatas[0], busName, lastBusLocation.location+validSpeed, validSpeed);
+					}
 				}
+				RunManager.busLocList.add(lastBusLocation);
 			}
-			
-			RunManager.busLocList.add(lastBusLocation);
-			
 		}catch(Exception ex) {
 			ex.printStackTrace();
 		}
