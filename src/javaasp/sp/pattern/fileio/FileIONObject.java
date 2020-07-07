@@ -4,11 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,6 +26,11 @@ public class FileIONObject {
 
 	public static void main(String[] args) throws Exception {
 		
+		// 유틸 - 하위 디렉토리 포함해서 파일명으로 검색하기
+		File[] fileArray = FileIONObject.getOnlyFileArrayIncludingSubDirectory(".", "READFILE.TXT");
+		List<File> fileList = FileIONObject.getOnlyFileListIncludingSubDirectory(".", "READFILE.TXT");
+		
+		// 파일 하나 읽기
 		String filePath = "./READFILE.TXT";
 		List<FileLineObject> objList = null;
 		
@@ -83,7 +91,7 @@ public class FileIONObject {
 		return objList;
 	}
 	
-	//Stream을 사용해서 파일 라인별 객체 목록 - 모든 클래스에 대응하도록 추상화.(전
+	//Stream을 사용해서 파일 라인별 객체 목록 - 모든 클래스에 대응하도록 추상화.(라인 문자열 처리 생성자가 존재해야 함)
 	/**
 	 * Stream을 사용해서 파일 라인별 객체 생성 - 모든 객체 타입에 대응하도록 타입 추상화
 	 * <br> 전제 : 라인 문자열을 처리하기 위한 생성자가 존재해야 함(ex. ObjectClass(String line))
@@ -115,6 +123,56 @@ public class FileIONObject {
 		
 		return lineList;
 	}	
+	
+	
+	/**
+	 * 하위디렉토리를 포함해서 파일만 조회해서 파일 목록을 배열로 리턴
+	 * @param rootPath
+	 * @param searchFileName 찾는 파일명(없다면 모든 파일)
+	 * @return
+	 * @throws IOException
+	 */
+	public static File[] getOnlyFileArrayIncludingSubDirectory(String rootPath, String... searchFileName) throws IOException {
+		
+		Set<String> searchFileNames = new HashSet<>(Arrays.asList(searchFileName));
+
+		Stream<Path> paths = Files.walk(Paths.get(rootPath))
+								  .filter(Files::isRegularFile);
+		
+		if(!searchFileNames.isEmpty()) {
+			paths = paths.filter(f->searchFileNames.contains(f.getFileName().toString()));
+		}
+		
+		File[] files = paths.map(Path::toFile)
+				            .toArray(File[]::new);
+		
+		return files;
+	}
+	
+	/**
+	 * 하위디렉토리를 포함해서 파일만 조회해서 파일 목록을 리스트로 리턴
+	 * @param rootPath
+	 * @param searchFileName 찾는 파일명(없다면 모든 파일)
+	 * @return
+	 * @throws IOException
+	 */
+	public static List<File> getOnlyFileListIncludingSubDirectory(String rootPath, String... searchFileName) throws IOException {
+		
+		Set<String> searchFileNames = new HashSet<>(Arrays.asList(searchFileName));
+
+		Stream<Path> paths = Files.walk(Paths.get(rootPath))
+								  .filter(Files::isRegularFile);
+		
+		if(!searchFileNames.isEmpty()) {
+			paths = paths.filter(f->searchFileNames.contains(f.getFileName().toString()));
+		}
+		
+		List<File> files = paths.map(Path::toFile)
+						  .collect(Collectors.toList());
+		
+		return files;
+
+	}
 	
 }
 
