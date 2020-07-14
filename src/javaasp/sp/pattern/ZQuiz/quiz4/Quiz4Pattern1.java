@@ -9,8 +9,13 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -46,6 +51,7 @@ public class Quiz4Pattern1 {
 	
 	private static final int SERVER_PORT = 9876;
 	static List<SocketLineObject3> obj3ListFromSocket;
+	static final String ExternalJarPath = "./Reflection.jar"; 
 	
 	public static void main(String[] args) throws Exception {
 		//문제1번 : 파일 라인 단위로 읽어 라인별 객체화 하기
@@ -116,7 +122,7 @@ public class Quiz4Pattern1 {
 		}
 	}
 	
-	static Object actionWithObjectListCombination2() {
+	static Object actionWithObjectListCombination2() throws Exception {
 		Object actionResult = null;
 		// 데이터 처리 액션 - 처리 로직의 난위도가 급상승
 		for(FileLineObject1 oneObject1 : obj1List) {
@@ -132,8 +138,22 @@ public class Quiz4Pattern1 {
 	}
 	
 	//문제4.2번 : 추가 로직 또는 신규 자바 기술 주제(Reflection... ) 로 로직 처리 
-	static void ationWithAddedLoginOrTech() {
+	static Object ationWithAddedLoginOrTech() throws Exception {
+		//문제4.2번 : 외부 jar파일 클래스 메소스 호출
+		File jarFile = new File(ExternalJarPath);
 		
+		URL classURL = new URL("jar:" + jarFile.toURI().toURL() + "!/");
+		URLClassLoader classLoader = new URLClassLoader(new URL[] {classURL});
+		
+		Class<?> c = classLoader.loadClass("Calculator");
+		Constructor<?> constructor = c.getConstructor(new Class[]{});
+		Object object = constructor.newInstance(new Object[]{});
+		
+		Method method = c.getMethod("add", new Class[]{Integer.TYPE, Integer.TYPE});
+		Object returnValue = method.invoke(object, 1, 2);
+		System.out.println(returnValue);
+		
+		return returnValue;
 	}
 	
 	static void printResultToSocketClient(Socket client, Object result) throws Exception {
