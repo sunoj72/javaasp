@@ -65,7 +65,7 @@ public class FileIONObject {
 	public static List<FileLineObject> getObjecListByFileLineWithScanner(String filePath) throws IOException {
 		Scanner fs = new Scanner(new File(filePath));
 		//사용자 입력 읽기
-		//Scanner fs = new Scanner(System.io);
+		//Scanner fs = new Scanner(System.in);
 		
 		//라인 단위 객체화(특정 문자로 문자 자르기)
 		ArrayList<FileLineObject> objList = new ArrayList<FileLineObject>();
