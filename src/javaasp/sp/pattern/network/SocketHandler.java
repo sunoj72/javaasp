@@ -16,8 +16,10 @@ import java.util.List;
 
 public class SocketHandler {
 
+	private static final int SERVER_PORT = 9876;
+
 	public static void main(String[] args) throws Exception {
-		try(ServerSocket serverSocket = new ServerSocket(9876)){
+		try(ServerSocket serverSocket = new ServerSocket(SERVER_PORT)){
 			//클라이언트 연결 대기 - blocking
 			Socket client = serverSocket.accept();
 			
