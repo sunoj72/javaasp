@@ -1,4 +1,4 @@
-package javaasp.sp.utilNpractice.collection;
+package javaasp.sp.utilNpractice.reflection;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
