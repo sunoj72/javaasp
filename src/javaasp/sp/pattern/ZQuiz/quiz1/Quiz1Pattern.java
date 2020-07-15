@@ -31,12 +31,6 @@ public class Quiz1Pattern {
 		//3. 액션을 통해 생성된 데이터를 파일에 출력
 		printResultToFile(actionResult);
 
-		//2번에서의 처리 결과가 리턴값으로 3번에 전달되어 출력 될수 있음
-		//Object result = actionWithObjectList();
-		//PrintResultToFile(result);
-		//2번에서 처리되면서 바로 출력 될 수 있음(한 메소드로 구현)
-		//actionWithObjectListThenPrintResult()
-
 	}
 
 	//2. 라인 단위로 객체화한 데이터를 갖고 추가 액션
