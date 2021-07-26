@@ -14,14 +14,23 @@ public class MyServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		resp.setStatus(200);
-		resp.getWriter().write("{ \"key\":\"valueget\" }");
+		resp.getWriter().write("{ \"key\":\"Handling GET Action\" }");
 	}
 	
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		String parameter1 = req.getParameter("p1");
+		
 		resp.setStatus(200);
-		resp.getWriter().write("{ \"key\":\"valuepost\" }");
+		if(parameter1 == null) {
+			resp.getWriter().write("{ \"key\":\"Handling POST Action\" }");
+		} else {
+			resp.getWriter().write("{ \"key\":\"Handling POST Action : " + parameter1 + "\"\" }");
+		}
+		
 	}
+	
+	
 	
 	
 }

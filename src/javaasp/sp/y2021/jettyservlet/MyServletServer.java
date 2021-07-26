@@ -17,7 +17,13 @@ public class MyServletServer {
 		server.addConnector(http);
 
 		ServletHandler servletHandler = new ServletHandler();
-		servletHandler.addServletWithMapping(MyServlet.class, "/helloworld");
+		// 1. get, post test
+		servletHandler.addServletWithMapping(HelloWorldServlet.class, "/helloworld");
+		//2. paramger test
+		servletHandler.addServletWithMapping(CalculatorServlet.class, "/calculator");
+		//3. File upload
+		
+		
 		server.setHandler(servletHandler);
 
 		server.start();
