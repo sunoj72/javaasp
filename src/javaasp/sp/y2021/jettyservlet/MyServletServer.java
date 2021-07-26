@@ -21,7 +21,8 @@ public class MyServletServer {
 		servletHandler.addServletWithMapping(HelloWorldServlet.class, "/helloworld");
 		//2. paramger test
 		servletHandler.addServletWithMapping(CalculatorServlet.class, "/calculator");
-		//3. File upload
+		//3. paramger test
+		servletHandler.addServletWithMapping(RestApiServiceServlet.class, "/rest/*");
 		
 		
 		server.setHandler(servletHandler);

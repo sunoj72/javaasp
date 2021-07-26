@@ -9,6 +9,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.api.Result;
+import org.eclipse.jetty.http.HttpMethod;
 
 
 public class MyServletClient {
@@ -18,19 +19,23 @@ public class MyServletClient {
 		httpClient.start();
 		
 		// 1. GET,POST 호출 방식
-//		ContentResponse contentRes = httpClient.newRequest("http://127.0.0.1:8080/helloworld").method(HttpMethod.GET).send();
-//		System.out.println(contentRes.getContentAsString());
-		ContentResponse contentRes2 = httpClient.GET("http://127.0.0.1:8080/helloworld");
-		System.out.println(contentRes2.getContentAsString());
+		ContentResponse contentRes = httpClient.newRequest("http://127.0.0.1:8080/helloworld")
+				.method(HttpMethod.GET)
+				.header("x-api-key", "apikey1234567890")
+				.send();
+		System.out.println(contentRes.getContentAsString());
+//		ContentResponse contentRes2 = httpClient.GET("http://apple.tct.com:8080/helloworld");
+//		System.out.println(contentRes2.getContentAsString());
 		//ContentResponse contentRes3 = httpClient.newRequest("http://127.0.0.1:8080/helloworld").method(HttpMethod.POST).send();
-		ContentResponse contentRes3 = httpClient.POST("http://127.0.0.1:8080/helloworld").send();
+		ContentResponse contentRes3 = httpClient.POST("http://banana.tct.com:8080/helloworld").send();
 		System.out.println(contentRes3.getContentAsString());
 		
 		// 2. Parameter 전달
-		ContentResponse contentRes4 = httpClient.POST("http://127.0.0.1:8080/calculator")
+		ContentResponse contentRes4 = httpClient.POST("http://melon.tct.com:8080/calculator")
 				.param("action", "+")
 				.param("value1", "3")
 				.param("value2", "7")
+				.attribute("att1", "true")
 				.send();
 		System.out.println(contentRes4.getContentAsString());
 		
