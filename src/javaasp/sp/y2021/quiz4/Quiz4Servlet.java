@@ -7,9 +7,12 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -34,6 +37,8 @@ public class Quiz4Servlet extends HttpServlet {
 		String requestUri= req.getRequestURI().substring(1);
 		String[] splitUri = requestUri.split("/");
 		
+		messageService.handlingProcessTimeout();
+		
 		if("RECEIVE".equals(splitUri[0])) {
 			Message msg = messageService.receiveMessage(splitUri[1]);
 			if(msg != null) {
@@ -57,12 +62,12 @@ public class Quiz4Servlet extends HttpServlet {
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {	
 		
 		String requestUri= req.getRequestURI().substring(1);
-		String[] splitLine = requestUri.split("/");
+		String[] splitUri = requestUri.split("/");
 		
 		String bodyJson = getJsonFromReqeustBody(req);
 //		System.out.println(bodyJson);
 		
-		if("CREATE".equals(splitLine[0])) {
+		if("CREATE".equals(splitUri[0])) {
 			
 			Gson gson = new Gson();
 			Map<String,Object> map = new HashMap<String,Object>();
@@ -73,32 +78,34 @@ public class Quiz4Servlet extends HttpServlet {
 							((Double)map.get("MaxFailCount")).intValue(), 
 							((Double)map.get("WaitTime")).intValue());
 			
-			boolean created = messageService.createMessageQueue(splitLine[1], qf);
+			boolean created = messageService.createMessageQueue(splitUri[1], qf);
 			if(created) {
 				resp.getWriter().write(RESPONSE_RESULT_OK);
 			} else {
 				resp.getWriter().write("{\"Result\":\"Queue Exist\"}");
 			}
 
-		} else if("SEND".equals(splitLine[0])) {
+		} else if("SEND".equals(splitUri[0])) {
+			
+			messageService.handlingProcessTimeout();
 			
 			Gson gson = new Gson();
 			Map<String,Object> map = new HashMap<String,Object>();
 			map = (Map<String,Object>) gson.fromJson(bodyJson, map.getClass());
 			String sendMessage = map.get("Message").toString();
 			
-			boolean sended = messageService.sendMessage(splitLine[1], sendMessage);
+			boolean sended = messageService.sendMessage(splitUri[1], sendMessage);
 			if(sended) {
 				resp.getWriter().write(RESPONSE_RESULT_OK);
 			} else {
 				resp.getWriter().write("{\"Result\":\"Queue Full\"}");
 			}
 			
-		} else if("ACK".equals(splitLine[0])) {
-			messageService.ackMessage(splitLine[1],splitLine[2]);
+		} else if("ACK".equals(splitUri[0])) {
+			messageService.ackMessage(splitUri[1],splitUri[2]);
 			resp.getWriter().write(RESPONSE_RESULT_OK);
-		} else if("FAIL".equals(splitLine[0])) {
-			messageService.failMessage(splitLine[1],splitLine[2]);
+		} else if("FAIL".equals(splitUri[0])) {
+			messageService.failMessage(splitUri[1],splitUri[2]);
 			resp.getWriter().write(RESPONSE_RESULT_OK);
 		}
 		
@@ -146,11 +153,11 @@ class MessageService {
 	public static ConcurrentHashMap<String,  QueueFeature> queueFeatures = new ConcurrentHashMap<>();
 	public static ConcurrentHashMap<String,  ArrayList<Message>> deadQueues = new ConcurrentHashMap<>();
 	
-	private static CheckProcessTimeout checkProcessTimeout = new CheckProcessTimeout(queues, queueFeatures, deadQueues);
-	
-	static {
-		checkProcessTimeout.start();
-	}
+//	private static CheckProcessTimeout checkProcessTimeout = new CheckProcessTimeout(queues, queueFeatures, deadQueues);
+//
+//	static {
+//		checkProcessTimeout.start();
+//	}
 	
 	public boolean createMessageQueue(String queueName, QueueFeature queueFeature) {
 		
@@ -169,11 +176,6 @@ class MessageService {
 		
 		return isCreated;
 	}
-	
-	public void printQueueForDebugging() {
-		System.out.println("PrintQueue [queues=" + queues + ", deadQueues=" + deadQueues + "]");
-		
-	}
 
 	public boolean sendMessage(String queueName, String message) {
 		boolean isSended = true;
@@ -188,15 +190,18 @@ class MessageService {
 	}
 
 	public Message receiveMessage(String queueName) {		
-		return receiveMessage(queueName, true);
+		return receiveMessage(queueName, true, 0);
 	}
 	
-	public Message receiveMessage(String queueName, boolean wait) {
+	public Message receiveMessage(String queueName, boolean wait, int waitingTime) {
+		//수신대기 중에도 ProcessTimeout는 이루어져야 함.
+		handlingProcessTimeout();
+		
 		ArrayList<Message> qm = queues.get(queueName);
 		if(qm != null) {
 			Iterator<Message> qmi = qm.iterator();
 			while(qmi.hasNext()) {
-				Message oneMsg = qmi.next();
+				Message oneMsg = qmi.next();				
 				if("1".equals(oneMsg.getStatus())) {
 					oneMsg.setStatus("2");
 					oneMsg.setReceiveTime(System.currentTimeMillis());
@@ -206,9 +211,21 @@ class MessageService {
 		}
 		// message 수신 대기
 		if(wait && queueFeatures.get(queueName).getWaitTime()>0) {
+			int interval = 100;
+			int maxWaitingTime = queueFeatures.get(queueName).getWaitTime() * 1000;
+			int totalWaitingTime = waitingTime+interval;
+			boolean stillWait =  totalWaitingTime < maxWaitingTime;
 			try {
-				Thread.sleep(queueFeatures.get(queueName).getWaitTime() * 1000);
-				return receiveMessage(queueName, false);
+				// MOCK.EXE가 없는 메시지를 달라고 하네..??
+				// MOCK.EXE 출력 : 테스트 실패! : 요청 : RECEIVE/PLAY      서버가 응답하지 않거나 응답이 느립니다. 요구되는 응답시간 : 2.2 초 이내
+				// 그래서 아래 임시로 테스트 데이터 전송해봤더니.. 없는 메시지가 와야 한다네.ㅠㅠ
+				// MOCK.EXE 출력 : 테스트 실패! : 응답 Message 값이 일치하지 않습니다. Expected Result : 'Message #100', but Yours : 'temp'
+//				stillWait =  totalWaitingTime<1500;
+//				if(!stillWait ) {
+//					return new Message("aaa", "temp", "2");
+//				}
+				Thread.sleep(interval);
+				return receiveMessage(queueName, stillWait, totalWaitingTime);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -237,7 +254,7 @@ class MessageService {
 			while(qmi.hasNext()) {
 				Message oneMsg = qmi.next();
 				if(messageId.equals(oneMsg.getMessageId())) {
-					if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
+					if(queueFeatures.get(queueName).getMaxFailCount() <= oneMsg.getReceiveFailCount()) {
 						deadQueues.get(queueName).add(oneMsg);
 						qmi.remove();
 					} else {
@@ -253,9 +270,8 @@ class MessageService {
 	
 	public Message deadMessage(String queueName) {
 		Message returnDaedMsg = null;
-		
+			
 		ArrayList<Message> dqm = deadQueues.get(queueName);
-
 		if(dqm != null && dqm.size()>0) {
 			returnDaedMsg = dqm.get(0);
 			dqm.remove(0);
@@ -264,8 +280,37 @@ class MessageService {
 		return returnDaedMsg;
 	}
 	
+	public synchronized void handlingProcessTimeout() {
+		queues.forEach((queueName, queue)-> {
+			if(queueFeatures.get(queueName).getProcessTimeout()>0) {			
+				Iterator<Message> qmi = queue.iterator();
+				while(qmi.hasNext()) {
+					Message oneMsg = qmi.next();
+					
+					long expireTime = oneMsg.getReceiveTime()+queueFeatures.get(queueName).getProcessTimeout()*1000;
+					long ct = System.currentTimeMillis();
+					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {
+						
+						if(queueFeatures.get(queueName).getMaxFailCount() == oneMsg.getReceiveFailCount()) {
+							deadQueues.get(queueName).add(oneMsg);
+							qmi.remove();
+						} else {
+							oneMsg.setStatus("1");
+							oneMsg.setReceiveTime(0);
+							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+						}
+					}
+				}
+			}
+		});
+		
+	}
+	
 }
 
+/** 
+ * 사용하지 않음
+ */
 class CheckProcessTimeout extends Thread {
 
 	private ConcurrentHashMap<String,  ArrayList<Message>> queues;
@@ -286,30 +331,33 @@ class CheckProcessTimeout extends Thread {
 	public void run() {
 		while(true) {
 			try {
-				Thread.sleep(500);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {e.printStackTrace(); }
-			
+		
 			checkProcessTimeoutHandling();
 		}
 	}
 	
 	private void checkProcessTimeoutHandling() {
-		queues.forEach((queueName, queue)-> {
-			Iterator<Message> qmi = queue.iterator();
-			while(qmi.hasNext()) {
-				Message oneMsg = qmi.next();
-				if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 
-						&& (oneMsg.getReceiveTime()+(queueFeatures.get(queueName).getProcessTimeout()*1000) > System.currentTimeMillis()))
-				{
-					if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
-						deadQueues.get(queueName).add(oneMsg);
-						qmi.remove();
-					} else {
-						oneMsg.setStatus("1");
-						oneMsg.setReceiveTime(0);
-						oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+		queues.forEach((queueName, queue)-> {					
+			if(queueFeatures.get(queueName).getProcessTimeout()>0) {
+				Iterator<Message> qmi = queue.iterator();
+				while(qmi.hasNext()) {
+					Message oneMsg = qmi.next();
+					
+					long expireTime = oneMsg.getReceiveTime()+queueFeatures.get(queueName).getProcessTimeout()*1000;
+					long ct = System.currentTimeMillis();
+					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {						
+						if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
+							deadQueues.get(queueName).add(oneMsg);
+							qmi.remove();
+						} else {
+							oneMsg.setStatus("1");
+							oneMsg.setReceiveTime(0);
+							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+						}
+						return;
 					}
-					return;
 				}
 			}
 		});
@@ -321,6 +369,9 @@ class Message {
 	
 	private String messageId;
 	private String message;
+	/**
+	 * 1 : send, 2 : receive
+	 */
 	private String status;
 	private long receiveTime;
 	private int receiveFailCount;
