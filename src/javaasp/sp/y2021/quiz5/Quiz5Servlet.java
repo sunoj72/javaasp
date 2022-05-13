@@ -16,7 +16,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -24,10 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.google.gson.Gson;
 
-/**
- * MVC - View
- *
- */
+
 public class Quiz5Servlet extends HttpServlet {
 	
 	private static final long serialVersionUID = -8840052554088651691L;
@@ -42,6 +38,9 @@ public class Quiz5Servlet extends HttpServlet {
 		
 		String requestUri= req.getRequestURI().substring(1);
 		String[] splitUri = requestUri.split("/");
+		
+		messageService.handlingProcessTimeout();
+		
 		if("RECEIVE".equals(splitUri[0])) {
 			Message msg = messageService.receiveMessage(splitUri[1]);
 			if(msg != null) {
@@ -60,9 +59,6 @@ public class Quiz5Servlet extends HttpServlet {
 			} else {
 				resp.getWriter().write("{\"Result\":\"No Message\"}");
 			}
-		} else if("SHUTDOWN".equals(splitUri[0])) {
-			messageService.shutdownMessage();
-			resp.getWriter().write(RESPONSE_RESULT_OK);
 		}
 		
 		resp.setStatus(200);
@@ -74,9 +70,14 @@ public class Quiz5Servlet extends HttpServlet {
 		String requestUri= req.getRequestURI().substring(1);
 		String[] splitUri = requestUri.split("/");
 		
+		String bodyJson = getJsonFromReqeustBody(req);
+//		System.out.println(bodyJson);
+		
+		resp.setStatus(200);
+		
+		messageService.handlingProcessTimeout();
+		
 		if("CREATE".equals(splitUri[0])) {
-			
-			String bodyJson = getJsonFromReqeustBody(req);
 			
 			Gson gson = new Gson();
 			Map<String,Object> map = new HashMap<String,Object>();
@@ -95,9 +96,7 @@ public class Quiz5Servlet extends HttpServlet {
 			}
 
 		} else if("SEND".equals(splitUri[0])) {
-			
-			String bodyJson = getJsonFromReqeustBody(req);
-			
+
 			Gson gson = new Gson();
 			Map<String,Object> map = new HashMap<String,Object>();
 			map = (Map<String,Object>) gson.fromJson(bodyJson, map.getClass());
@@ -116,12 +115,24 @@ public class Quiz5Servlet extends HttpServlet {
 		} else if("FAIL".equals(splitUri[0])) {
 			messageService.failMessage(splitUri[1],splitUri[2]);
 			resp.getWriter().write(RESPONSE_RESULT_OK);
-		} else if("SHUTDOWN".equals(splitUri[0])) {
+		} else if("SHUTDOWN".equals(splitUri[0])) {	
+//			resp.getWriter().write(RESPONSE_RESULT_OK);
 			messageService.shutdownMessage();
 			resp.getWriter().write(RESPONSE_RESULT_OK);
+			
+//			System.exit(0);
+			
+//			try {
+//				Thread.sleep(10);
+//				System.exit(0);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+			
 		}
 		
-		resp.setStatus(200);
+		//resp.setStatus(200);
 	}
 		
 	public static String getJsonFromReqeustBody(HttpServletRequest request) throws IOException {
@@ -159,33 +170,25 @@ public class Quiz5Servlet extends HttpServlet {
 }
 
 
-/**
- * MVC - Controller
- *
- */
-class MessageService implements Serializable {
-	
-	private static final long serialVersionUID = 362498820763181265L;
-	
+class MessageService {
+
 	//Message DB
 	private static MessageDB messageDB = MessageDB.getInstance();
 	private static volatile boolean shutdownStatus = false;
 	
-	private static CheckProcessTimeout checkProcessTimeout = new CheckProcessTimeout();
-	
+//	private static CheckProcessTimeout checkProcessTimeout = new CheckProcessTimeout(queues, queueFeatures, deadQueues);
+//
 	static {
 		loadMessageDB();
-		checkProcessTimeout.start();
+//		checkProcessTimeout.start();
 	}
-
+	
 	public boolean createMessageQueue(String queueName, QueueFeature queueFeature) {
 		
 		boolean isCreated = false;
 		
 		if(!messageDB.getQueues().containsKey(queueName)) {
 			ArrayList<Message> newQueue = new ArrayList<>();
-//			newQueue = Collections.synchronizedList(new ArrayList<Message>());
-			
 			messageDB.getQueues().put(queueName, newQueue);
 			messageDB.getQueueFeatures().put(queueName, queueFeature);
 			
@@ -197,7 +200,7 @@ class MessageService implements Serializable {
 		
 		return isCreated;
 	}
-	
+
 	public boolean sendMessage(String queueName, String message) {
 		boolean isSended = true;
 		
@@ -211,15 +214,18 @@ class MessageService implements Serializable {
 	}
 
 	public Message receiveMessage(String queueName) {		
-		return receiveMessage(queueName, true);
+		return receiveMessage(queueName, true, 0);
 	}
 	
-	private Message receiveMessage(String queueName, boolean wait) {
+	public Message receiveMessage(String queueName, boolean wait, int waitingTime) {
+		//수신대기 중에도 ProcessTimeout는 이루어져야 함.
+		handlingProcessTimeout();
+		
 		ArrayList<Message> qm = messageDB.getQueues().get(queueName);
 		if(qm != null) {
 			Iterator<Message> qmi = qm.iterator();
 			while(qmi.hasNext()) {
-				Message oneMsg = qmi.next();
+				Message oneMsg = qmi.next();				
 				if("1".equals(oneMsg.getStatus())) {
 					oneMsg.setStatus("2");
 					oneMsg.setReceiveTime(System.currentTimeMillis());
@@ -227,23 +233,31 @@ class MessageService implements Serializable {
 				}
 			}
 		}
+		
 		// message 수신 대기
 		if(wait && messageDB.getQueueFeatures().get(queueName).getWaitTime()>0) {
-			try {
-				// Shutdown 시 수신 대기 중인 Consumer 요청 즉시 처리 : Service Unavailabel
-				long maxWaitTime = messageDB.getQueueFeatures().get(queueName).getWaitTime() * 1000;
-				long waitingTime = 0;
-				long checkInterval = 100L;
-				while(waitingTime < maxWaitTime) {
-					if(shutdownStatus) {
-						return new Message("shutdown", "shutdown", "3");
-					}
-					waitingTime += checkInterval;
-					Thread.sleep(messageDB.getQueueFeatures().get(queueName).getWaitTime() * checkInterval);
-				}
-				return receiveMessage(queueName, false);
-			} catch (InterruptedException e) {
+			if(shutdownStatus) {
 				return new Message("shutdown", "shutdown", "3");
+			}
+			
+			int interval = 100;
+			int maxWaitingTime = messageDB.getQueueFeatures().get(queueName).getWaitTime() * 1000;
+			int totalWaitingTime = waitingTime+interval;
+			boolean stillWait =  totalWaitingTime < maxWaitingTime;
+			try {
+				// MOCK.EXE가 없는 메시지를 달라고 하네..??
+				// MOCK.EXE 출력 : 테스트 실패! : 요청 : RECEIVE/PLAY      서버가 응답하지 않거나 응답이 느립니다. 요구되는 응답시간 : 2.2 초 이내
+				// 그래서 아래 임시로 테스트 데이터 전송해봤더니.. 없는 메시지가 와야 한다네.ㅠㅠ
+				// MOCK.EXE 출력 : 테스트 실패! : 응답 Message 값이 일치하지 않습니다. Expected Result : 'Message #100', but Yours : 'temp'
+//				stillWait =  totalWaitingTime<1500;
+//				if(!stillWait ) {
+//					return new Message("aaa", "temp", "2");
+//				}
+				Thread.sleep(interval);
+				
+				return receiveMessage(queueName, stillWait, totalWaitingTime);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 		
@@ -270,7 +284,7 @@ class MessageService implements Serializable {
 			while(qmi.hasNext()) {
 				Message oneMsg = qmi.next();
 				if(messageId.equals(oneMsg.getMessageId())) {
-					if(messageDB.getQueueFeatures().get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
+					if(messageDB.getQueueFeatures().get(queueName).getMaxFailCount() <= oneMsg.getReceiveFailCount()) {
 						messageDB.getDeadQueues().get(queueName).add(oneMsg);
 						qmi.remove();
 					} else {
@@ -286,9 +300,8 @@ class MessageService implements Serializable {
 	
 	public Message deadMessage(String queueName) {
 		Message returnDaedMsg = null;
-		
+			
 		ArrayList<Message> dqm = messageDB.getDeadQueues().get(queueName);
-
 		if(dqm != null && dqm.size()>0) {
 			returnDaedMsg = dqm.get(0);
 			dqm.remove(0);
@@ -297,9 +310,34 @@ class MessageService implements Serializable {
 		return returnDaedMsg;
 	}
 	
+	public synchronized void handlingProcessTimeout() {
+		messageDB.getQueues().forEach((queueName, queue)-> {
+			if(messageDB.getQueueFeatures().get(queueName).getProcessTimeout()>0) {			
+				Iterator<Message> qmi = queue.iterator();
+				while(qmi.hasNext()) {
+					Message oneMsg = qmi.next();
+					
+					long expireTime = oneMsg.getReceiveTime()+messageDB.getQueueFeatures().get(queueName).getProcessTimeout()*1000;
+					long ct = System.currentTimeMillis();
+					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {
+						
+						if(messageDB.getQueueFeatures().get(queueName).getMaxFailCount() == oneMsg.getReceiveFailCount()) {
+							messageDB.getDeadQueues().get(queueName).add(oneMsg);
+							qmi.remove();
+						} else {
+							oneMsg.setStatus("1");
+							oneMsg.setReceiveTime(0);
+							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+						}
+					}
+				}
+			}
+		});
+		
+	}
+	
 	public void shutdownMessage() {
 		shutdownStatus = true;
-		checkProcessTimeout.setShutdownStatus(true);
 		
 		//수신한 모든 메시지 완료 간주해서 Queue에서 삭제
 		messageDB.getQueues().forEach((queueName, queue)-> {		
@@ -312,14 +350,7 @@ class MessageService implements Serializable {
 			}
 		});
 		
-		try {
-			checkProcessTimeout.interrupt();
-			
-			Thread.sleep(100);
-			saveMessageDB();
-		} catch (InterruptedException e) {e.printStackTrace(); }
-		
-		System.exit(0);
+		saveMessageDB();
 	}
 	
 	private void saveMessageDB() {
@@ -349,7 +380,7 @@ class MessageService implements Serializable {
 		FileInputStream fis = null;
         ObjectInputStream ois = null;
         try {
-        	File serfile = new File("./msgdb.ser");
+        	File serfile = new File("./msgdb1.ser");
         	if(serfile.exists()) {
 	            fis = new FileInputStream(serfile);
 	            ois = new ObjectInputStream(fis);
@@ -375,6 +406,64 @@ class MessageService implements Serializable {
     }
 	
 }
+
+/** 
+ * 사용하지 않음
+ */
+class CheckProcessTimeout extends Thread {
+
+	private ConcurrentHashMap<String,  ArrayList<Message>> queues;
+	private ConcurrentHashMap<String,  QueueFeature> queueFeatures;
+	
+	private ConcurrentHashMap<String,  ArrayList<Message>> deadQueues;
+	
+	public CheckProcessTimeout(ConcurrentHashMap<String, ArrayList<Message>> queues,
+			ConcurrentHashMap<String,  QueueFeature> queueFeatures,
+			ConcurrentHashMap<String, ArrayList<Message>> deadQueues) {
+		super();
+		this.queues = queues;
+		this.queueFeatures = queueFeatures;
+		this.deadQueues = deadQueues;
+	}
+	
+	@Override
+	public void run() {
+		while(true) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {e.printStackTrace(); }
+		
+			checkProcessTimeoutHandling();
+		}
+	}
+	
+	private void checkProcessTimeoutHandling() {
+		queues.forEach((queueName, queue)-> {					
+			if(queueFeatures.get(queueName).getProcessTimeout()>0) {
+				Iterator<Message> qmi = queue.iterator();
+				while(qmi.hasNext()) {
+					Message oneMsg = qmi.next();
+					
+					long expireTime = oneMsg.getReceiveTime()+queueFeatures.get(queueName).getProcessTimeout()*1000;
+					long ct = System.currentTimeMillis();
+					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {						
+						if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
+							deadQueues.get(queueName).add(oneMsg);
+							qmi.remove();
+						} else {
+							oneMsg.setStatus("1");
+							oneMsg.setReceiveTime(0);
+							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+						}
+						return;
+					}
+				}
+			}
+		});
+	}
+	
+}
+
 
 /**
  * MVC - Model
@@ -430,10 +519,13 @@ class MessageDB implements Serializable {
 
 class Message implements Serializable {
 	
-	private static final long serialVersionUID = -3534791154416113316L;
+	private static final long serialVersionUID = 4990731653242190882L;
 	
 	private String messageId;
 	private String message;
+	/**
+	 * 1 : send, 2 : receive. 3 : shutdown
+	 */
 	private String status;
 	private long receiveTime;
 	private int receiveFailCount;
@@ -485,7 +577,7 @@ class Message implements Serializable {
 
 class QueueFeature implements Serializable {
 	
-	private static final long serialVersionUID = 6356314066781885558L;
+	private static final long serialVersionUID = 1940577136805617170L;
 	
 	private int queueSize;
 	private int processTimeout;
@@ -531,76 +623,4 @@ class QueueFeature implements Serializable {
 	public void setWaitTime(int waitTime) {
 		this.waitTime = waitTime;
 	}
-}
-
-class CheckProcessTimeout extends Thread {
-
-	private ConcurrentHashMap<String,  ArrayList<Message>> queues;
-	private ConcurrentHashMap<String,  QueueFeature> queueFeatures;
-	private ConcurrentHashMap<String,  ArrayList<Message>> deadQueues;
-	
-	private boolean shutdownStatus;
-	
-	public CheckProcessTimeout() {
-		MessageDB msgdb = MessageDB.getInstance();
-		this.queues = msgdb.getQueues();
-		this.queueFeatures =  msgdb.getQueueFeatures();
-		this.deadQueues = msgdb.getDeadQueues();
-	}
-	
-	public boolean isShutdownStatus() {
-		return shutdownStatus;
-	}
-
-	public void setShutdownStatus(boolean shutdownStatus) {
-		this.shutdownStatus = shutdownStatus;
-	}
-	
-	@Override
-	public void run() {
-		try {
-			while(true && !shutdownStatus) {
-				Thread.sleep(10);
-				if(shutdownStatus) {
-					return;
-				}
-				checkProcessTimeoutHandling();
-			}
-		} catch (InterruptedException e) {
-			shutdownStatus = true;
-//			e.printStackTrace();
-		}
-	}
-	
-	private void checkProcessTimeoutHandling() {
-		queues.forEach((queueName, queue)-> {
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException e) {
-				return;
-			}
-			
-			if(shutdownStatus) {
-				return;
-			}
-			
-			Iterator<Message> qmi = queue.iterator();
-			while(qmi.hasNext()) {
-				Message oneMsg = qmi.next();
-				if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 
-						&& (oneMsg.getReceiveTime()+(queueFeatures.get(queueName).getProcessTimeout()*1000) < System.currentTimeMillis())) {
-					if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
-						deadQueues.get(queueName).add(oneMsg);
-						qmi.remove();
-					} else {
-						oneMsg.setStatus("1");
-						oneMsg.setReceiveTime(0);
-						oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
-					}
-					return;
-				}
-			}
-		});
-	}
-	
 }
