@@ -116,19 +116,13 @@ public class Quiz5Servlet extends HttpServlet {
 			messageService.failMessage(splitUri[1],splitUri[2]);
 			resp.getWriter().write(RESPONSE_RESULT_OK);
 		} else if("SHUTDOWN".equals(splitUri[0])) {	
-//			resp.getWriter().write(RESPONSE_RESULT_OK);
 			messageService.shutdownMessage();
 			resp.getWriter().write(RESPONSE_RESULT_OK);
+			// TODO : close호출해야 컨슈머에서 정상 완료 >> respose응답하는 부분을 다 close호출할 수 있게 공통메소드로 만들필요 있음
+			resp.getWriter().close();
 			
-//			System.exit(0);
-			
-//			try {
-//				Thread.sleep(10);
-//				System.exit(0);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
+			//시스템 종료
+			System.exit(0);
 			
 		}
 		
@@ -179,6 +173,7 @@ class MessageService {
 //	private static CheckProcessTimeout checkProcessTimeout = new CheckProcessTimeout(queues, queueFeatures, deadQueues);
 //
 	static {
+		System.out.println("MessageService Start : Restore MessageDB");
 		loadMessageDB();
 //		checkProcessTimeout.start();
 	}
@@ -380,7 +375,7 @@ class MessageService {
 		FileInputStream fis = null;
         ObjectInputStream ois = null;
         try {
-        	File serfile = new File("./msgdb1.ser");
+        	File serfile = new File("./msgdb.ser");
         	if(serfile.exists()) {
 	            fis = new FileInputStream(serfile);
 	            ois = new ObjectInputStream(fis);
@@ -410,59 +405,59 @@ class MessageService {
 /** 
  * 사용하지 않음
  */
-class CheckProcessTimeout extends Thread {
-
-	private ConcurrentHashMap<String,  ArrayList<Message>> queues;
-	private ConcurrentHashMap<String,  QueueFeature> queueFeatures;
-	
-	private ConcurrentHashMap<String,  ArrayList<Message>> deadQueues;
-	
-	public CheckProcessTimeout(ConcurrentHashMap<String, ArrayList<Message>> queues,
-			ConcurrentHashMap<String,  QueueFeature> queueFeatures,
-			ConcurrentHashMap<String, ArrayList<Message>> deadQueues) {
-		super();
-		this.queues = queues;
-		this.queueFeatures = queueFeatures;
-		this.deadQueues = deadQueues;
-	}
-	
-	@Override
-	public void run() {
-		while(true) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {e.printStackTrace(); }
-		
-			checkProcessTimeoutHandling();
-		}
-	}
-	
-	private void checkProcessTimeoutHandling() {
-		queues.forEach((queueName, queue)-> {					
-			if(queueFeatures.get(queueName).getProcessTimeout()>0) {
-				Iterator<Message> qmi = queue.iterator();
-				while(qmi.hasNext()) {
-					Message oneMsg = qmi.next();
-					
-					long expireTime = oneMsg.getReceiveTime()+queueFeatures.get(queueName).getProcessTimeout()*1000;
-					long ct = System.currentTimeMillis();
-					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {						
-						if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
-							deadQueues.get(queueName).add(oneMsg);
-							qmi.remove();
-						} else {
-							oneMsg.setStatus("1");
-							oneMsg.setReceiveTime(0);
-							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
-						}
-						return;
-					}
-				}
-			}
-		});
-	}
-	
-}
+//class CheckProcessTimeout extends Thread {
+//
+//	private ConcurrentHashMap<String,  ArrayList<Message>> queues;
+//	private ConcurrentHashMap<String,  QueueFeature> queueFeatures;
+//	
+//	private ConcurrentHashMap<String,  ArrayList<Message>> deadQueues;
+//	
+//	public CheckProcessTimeout(ConcurrentHashMap<String, ArrayList<Message>> queues,
+//			ConcurrentHashMap<String,  QueueFeature> queueFeatures,
+//			ConcurrentHashMap<String, ArrayList<Message>> deadQueues) {
+//		super();
+//		this.queues = queues;
+//		this.queueFeatures = queueFeatures;
+//		this.deadQueues = deadQueues;
+//	}
+//	
+//	@Override
+//	public void run() {
+//		while(true) {
+//			try {
+//				Thread.sleep(100);
+//			} catch (InterruptedException e) {e.printStackTrace(); }
+//		
+//			checkProcessTimeoutHandling();
+//		}
+//	}
+//	
+//	private void checkProcessTimeoutHandling() {
+//		queues.forEach((queueName, queue)-> {					
+//			if(queueFeatures.get(queueName).getProcessTimeout()>0) {
+//				Iterator<Message> qmi = queue.iterator();
+//				while(qmi.hasNext()) {
+//					Message oneMsg = qmi.next();
+//					
+//					long expireTime = oneMsg.getReceiveTime()+queueFeatures.get(queueName).getProcessTimeout()*1000;
+//					long ct = System.currentTimeMillis();
+//					if("2".equals(oneMsg.getStatus()) && oneMsg.getReceiveTime()>0 && expireTime < ct) {						
+//						if(queueFeatures.get(queueName).getMaxFailCount() < oneMsg.getReceiveFailCount()) {
+//							deadQueues.get(queueName).add(oneMsg);
+//							qmi.remove();
+//						} else {
+//							oneMsg.setStatus("1");
+//							oneMsg.setReceiveTime(0);
+//							oneMsg.setReceiveFailCount(oneMsg.getReceiveFailCount()+1);
+//						}
+//						return;
+//					}
+//				}
+//			}
+//		});
+//	}
+//	
+//}
 
 
 /**
