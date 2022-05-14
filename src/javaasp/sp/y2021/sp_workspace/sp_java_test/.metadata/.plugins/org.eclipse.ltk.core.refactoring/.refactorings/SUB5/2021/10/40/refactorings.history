@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;SUB5/Mock.exe&apos; to &apos;MOCK.exe&apos;" description="Rename resource &apos;Mock.exe&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Mock.exe" name="MOCK.exe" stamp="1633218636736" updateReferences="true"/>
+</session>
