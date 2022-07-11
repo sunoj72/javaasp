@@ -1,0 +1,5 @@
+FileLineObject [id=T01.JPG, name=HAPPY]
+FileLineObject [id=T02.JPG, name=SAD]
+FileLineObject [id=T02.JPG, name=HAPPY]
+FileLineObject [id=T03.JPG, name=NEUTRAL]
+FileLineObject [id=T20.JPG, name=SURPRISED]
