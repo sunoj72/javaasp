@@ -19,6 +19,10 @@ public class HelloWorldServlet extends HttpServlet {
 	
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {	
+
+		String reqBody = HttpUtil.getJsonFromReqeustBody(req);
+		System.out.println("HelloWorldServlet Request Body : " + reqBody);
+		
 		resp.setStatus(200);
 		resp.getWriter().write("{ \"key\":\"Handling POST Action\" }");
 	}

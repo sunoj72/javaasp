@@ -3,6 +3,7 @@ package javaasp.sp.pattern.fileio;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,9 +32,13 @@ public class FileIONObject {
 		List<File> fileList = FileIONObject.getOnlyFileListIncludingSubDirectory(".", "READFILE.TXT");
 		
 		// 파일 하나 읽기
-		String filePath = "./READFILE.TXT";
-		List<FileLineObject> objList = null;
+		String filePath = "./README.md";
 		
+		String content = readContentOfFileUsingFilesAllLines(filePath);
+		String content2 = readContentOfFileUsingFilesAllBytes(filePath);
+		
+		//1. 파일 라인 단위로 읽어 라인별 객체화 하기
+		List<FileLineObject> objList = null;		
 		//1.1 파일 라인 단위로 읽어 라인별 객체화 하기 - 방법 1 : Scanner
 		objList = getObjecListByFileLineWithScanner(filePath);
 		
@@ -103,6 +108,7 @@ public class FileIONObject {
 	 */
 	public static <T> List<T> getObjectListByFileLineWithStream(String filePath, Class<T> objectClass) throws IOException {
 		Stream<String> stream = Files.lines(Paths.get(filePath));
+		List<String> stream2 = Files.readAllLines(Paths.get(filePath));
 		List<T> objList = stream.map(line->{
 			try {
 				return objectClass.getConstructor(String.class).newInstance(line);
@@ -122,7 +128,37 @@ public class FileIONObject {
 		}
 		
 		return lineList;
-	}	
+	}
+	
+	//파일 전체 내용을 한 문자열로 읽기 #1
+	public static String readContentOfFileUsingFilesAllLines(String filePath) throws IOException {
+		Path path = Paths.get(filePath);
+		 
+        String content = null;
+        try {
+            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+            content = String.join(System.lineSeparator(), lines);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println(content);
+        return content;
+	}
+	
+	//파일 전체 내용을 한 문자열로 읽기 #2
+	public static String readContentOfFileUsingFilesAllBytes(String filePath) throws IOException {
+		Path path = Paths.get(filePath);
+		 
+        String content = null;
+        try {
+        	byte[] encoded = Files.readAllBytes(path);
+            content = new String(encoded, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println(content);
+        return content;
+	}
 	
 	
 	/**
@@ -139,12 +175,14 @@ public class FileIONObject {
 		Stream<Path> paths = Files.walk(Paths.get(rootPath))
 								  .filter(Files::isRegularFile);
 		
-		if(!searchFileNames.isEmpty()) {
-			paths = paths.filter(f->searchFileNames.contains(f.getFileName().toString()));
-		}
+//		if(!searchFileNames.isEmpty()) {
+//			paths = paths.filter(f->searchFileNames.contains(f.getFileName().toString()));
+//		}
 		
-		File[] files = paths.map(Path::toFile)
-				            .toArray(File[]::new);
+		File[] files = 
+				paths.filter(f->searchFileNames.contains(f.getFileName().toString()))
+					 .map(Path::toFile)
+					 .toArray(File[]::new);
 		
 		return files;
 	}

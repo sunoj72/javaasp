@@ -9,6 +9,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.api.Result;
+import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpMethod;
 
 
@@ -24,19 +25,24 @@ public class MyServletClient {
 				.header("x-api-key", "apikey1234567890")
 				.send();
 		System.out.println(contentRes.getContentAsString());
-//		ContentResponse contentRes2 = httpClient.GET("http://apple.tct.com:8080/helloworld");
-//		System.out.println(contentRes2.getContentAsString());
+		ContentResponse contentRes2 = httpClient.GET("http://127.0.0.1:8080/helloworld");
+		System.out.println(contentRes2.getContentAsString());
 		//ContentResponse contentRes3 = httpClient.newRequest("http://127.0.0.1:8080/helloworld").method(HttpMethod.POST).send();
-		ContentResponse contentRes3 = httpClient.POST("http://banana.tct.com:8080/helloworld").send();
+		// POST with request body
+		ContentResponse contentRes3 = 
+				httpClient.POST("http://127.0.0.1:8080/helloworld")
+				.content(new StringContentProvider("{\"username\":\"parkty\",\"password\":\"123456\"}","utf-8"))
+				.send();
 		System.out.println(contentRes3.getContentAsString());
 		
 		// 2. Parameter 전달
-		ContentResponse contentRes4 = httpClient.POST("http://melon.tct.com:8080/calculator")
+		ContentResponse contentRes4 = httpClient.POST("http://127.0.0.1:8080/calculator")
 				.param("action", "+")
 				.param("value1", "3")
 				.param("value2", "7")
 				.attribute("att1", "true")
 				.send();
+		
 		System.out.println(contentRes4.getContentAsString());
 		
 		//JsonElement jsonElement = JsonParser.parseString("{ \"key\":\"value\" }");
