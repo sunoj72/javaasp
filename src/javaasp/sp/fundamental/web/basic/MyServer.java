@@ -1,4 +1,4 @@
-package test;
+package javaasp.sp.fundamental.web.basic;
 
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHandler;
