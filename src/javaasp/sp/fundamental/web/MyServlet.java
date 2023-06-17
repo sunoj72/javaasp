@@ -22,7 +22,7 @@ public class MyServlet extends HttpServlet {
 		String parameter1 = req.getParameter("p1");
 		
 		resp.setStatus(200);
-		if(parameter1 == null) {
+		if(parameter1 == null) { 
 			resp.getWriter().write("{ \"key\":\"Handling POST Action\" }");
 		} else {
 			resp.getWriter().write("{ \"key\":\"Handling POST Action : " + parameter1 + "\"\" }");
