@@ -1,4 +1,4 @@
-package javaasp.sp.fundamental.gson;
+package javaasp.sp.fundamental.jetty;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -20,22 +20,10 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 // gson Samples: https://hianna.tistory.com/629#gson13
-public class GsonBasic {
+public class JettyBasic {
 	public static void main(String[] args) {
 		
-		makeJson();
 		System.out.println();
-		makeJsonWihArray();
-		System.out.println();
-		parsingJson();
-		System.out.println();
-		json2Object();
-		System.out.println();
-		object2Json();
-		System.out.println();
-		readFromFile();
-		System.out.println();
-		writeToFile();
 	}
 	
 	public static void makeJson() {

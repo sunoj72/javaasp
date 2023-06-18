@@ -14,7 +14,7 @@ public class ListSorting {
 		
 		Comparator<String> byWeight = (o1, o2) -> o1.compareTo(o2);
 		
-		List<String> list = Arrays.asList("a","c","b", "bb");
+		List<String> list = Arrays.asList("a","c","b", "bb", "aaa");
 		Predicate<String> p = s -> list.add(s);
 		Consumer<String> c = s -> list.add(s);
 		
@@ -38,8 +38,8 @@ public class ListSorting {
 		List<Employee> employees = 
 				Arrays.asList(
 						new Employee("1", "parkty", "M", 29, "sunim", false),
-						new Employee("2", "kimgil", "F", 40, "chackim", true),
-						new Employee("3", "leeschul", "F", 56, "sawon", false),
+						new Employee("2", "leeschul", "F", 40, "sawon", false),
+						new Employee("3", "kimgil", "F", 40, "chackim", true),
 						new Employee("4", "parkty", "M", 33, "zchackim", true)
 						);
 		
@@ -47,7 +47,7 @@ public class ListSorting {
 		List<Employee> sortedEmpls = employees.stream()
 					.sorted(
 							Comparator.comparing(Employee::getAge).thenComparing(Employee::getName)
-					).toList();
+					).collect(Collectors.toList());
 		System.out.println(sortedEmpls);
 		
 		// 오브젝트 리스트를 2개(나이,이름) 기준 정렬 후에 성별로 구분
@@ -67,6 +67,7 @@ public class ListSorting {
 	}
 
 }
+
 
 class Employee
 {

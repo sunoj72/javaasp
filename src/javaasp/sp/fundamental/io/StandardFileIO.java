@@ -18,14 +18,14 @@ import java.util.stream.Stream;
 
 
 
-public class StandarFileIO {
+public class StandardFileIO {
 
 	public static void main(String[] args) throws Exception {
 
 		String filePath = "";
 		
 		//표준입출력 : 사용자입력을 통해 데이터 생성
-		standardio();
+		standardIo();
 		
 		//파일입출력
 		fileio();
@@ -57,7 +57,7 @@ public class StandarFileIO {
 	 * <br/> 
 	 * 예제 시나리오 : 사용자가 입력한 '키#값'형태의 텍스트를 Map저장하고 '키'형태로만 들어오는 경우 Map에서 값을 조회해서 출력
 	 */
-	public static void standardio() {
+	public static void standardIo() {
 		
 		HashMap<String, String> hmData = new HashMap<String, String>();
 		// 표준입출력(사용자 콘솔 입력)
