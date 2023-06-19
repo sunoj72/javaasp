@@ -1,6 +1,6 @@
 # javaasp
 
-* 필기 자료
+## 필기 자료
 
 - AI Tech Letter (https://wire.lgcns.com/confluence/pages/viewpage.action?pageId=112689593)
 - Cloud Service Sales Toolkit (https://wire.lgcns.com/confluence/pages/viewpage.action?pageId=509280269)
@@ -39,7 +39,7 @@
  
 
 ---
-* Reference Site
+## Reference Site
 
 - File IO
   - 라인단위 파일 읽기 : https://mkyong.com/java8/java-8-stream-read-a-file-line-by-line/
